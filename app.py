@@ -12,19 +12,24 @@ st.set_page_config(page_title="Sportscode CSV → XML", page_icon="🎥", layout
 
 # ---------- Helpers ----------
 def robust_csv_bytes(file_bytes: bytes, encoding: str = "utf-8"):
-    # Read bytes into list of rows via csv.reader with error replacement
+    """
+    Robust CSV reader for PerformaSports files.
+    - Decodes with replacement for bad characters.
+    - Uses newline='' so csv.reader handles embedded newlines safely.
+    - Extends header if rows have more fields than headers.
+    - Pads shorter rows so all rows match header length.
+    """
     text = file_bytes.decode(encoding=encoding, errors="replace")
-    reader = csv.reader(io.StringIO(text))
+    sio = io.StringIO(text, newline='')  # <-- critical for messy CSVs
+    reader = csv.reader(sio)
     try:
         header = next(reader)
     except StopIteration:
         return [], []
     rows = list(reader)
-    # Extend header to longest row length
     max_len = max(len(header), max((len(r) for r in rows), default=len(header)))
     if len(header) < max_len:
-        header = header + [f"Extra{i}" for i in range(1, max_len - len(header) + 1)]
-    # Normalize row lengths
+        header = header + [f"Extra{{i}}".format(i=i) for i in range(1, max_len - len(header) + 1)]
     rows = [r + [""] * (len(header) - len(r)) for r in rows]
     return header, rows
 
